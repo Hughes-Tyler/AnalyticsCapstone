@@ -1,0 +1,32 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "analytics_capstone"
+version = "0.0.1"
+description = "Predicting startup success and failure using funding velocity, timing, and survival analysis on Crunchbase data."
+authors = [
+  { name = "JMST_Team_BC" },
+]
+
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    
+]
+requires-python = "~=3.13.0"
+
+
+[tool.ruff]
+line-length = 99
+src = ["analytics_capstone"]
+include = ["pyproject.toml", "analytics_capstone/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["analytics_capstone"]
+force-sort-within-sections = true
+
