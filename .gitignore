@@ -186,3 +186,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Trained model artifacts (too large for git, e.g. the deep Random Forest is ~390MB)
+models/*.pkl
