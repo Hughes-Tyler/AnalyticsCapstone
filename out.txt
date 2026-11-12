@@ -1,0 +1,581 @@
+---CELL 131 markdown ---
+### Training vs. validation as complexity increases (V1 → V3)
+ 
+As the forest gets deeper, training performance rises sharply while validation performance does not follow. Training macro F1 climbs from 0.329 (V1) to 0.649 (V2) to 0.996 (V3). Validation macro F1 goes 0.311, 0.422, 0.319, so it peaks at V2 and falls back at V3. The train-minus-validation gap in macro F1 grows from 0.019 (V1) to 0.228 (V2) to 0.677 (V3).
+ 
+V1 (Shallow, depth 5) underfits. Train and validation scores are nearly identical (0.329 vs. 0.311), so the model is not overfitting. It is too simple to learn the patterns, with weak scores on both sets. With balanced class weights and only five levels per tree, it over-predicts the small classes. It finds only 39% of operating companies, and its validation accuracy is 42.1%, far below the 81.7% we would get by predicting "operating" for every company.
+ 
+V2 (Baseline, depth 15) shows moderate overfitting. Training scores rise substantially (macro F1 0.649, IPO recall 0.931), but validation drops to 0.422. The loss is concentrated in the minority classes. IPO recall falls from 0.931 to 0.338, closed from 0.725 to 0.399, and acquired from 0.849 to 0.515. Operating recall barely changes (0.773 to 0.724).
+ 
+V3 (Deep, unrestricted depth) is clearly overfit. It fits the training set almost perfectly (macro F1 0.996, every class recall at least 0.997), but validation macro F1 falls to 0.319. Recall drops by roughly 0.91 to 0.95 for acquired (0.998 to 0.091), closed (0.999 to 0.052), and IPO (1.000 to 0.081). On validation, V3 labels almost every company as operating (recall 0.981). Its 81.5% validation accuracy matches the all-operating baseline, so it has learned almost nothing about the minority outcomes beyond memorizing training rows. Even `class_weight='balanced'` does not prevent this, because fully grown trees can isolate individual minority examples regardless of their weights.
+ 
+### Validation performance across variations
+ 
+| Variation | Val Macro F1 | Recall (Operating) | Recall (Acquired) | Recall (Closed) | Recall (IPO) | Val Accuracy |
+|---|---|---|---|---|---|---|
+| V1 - Shallow | 0.311 | 0.394 | 0.420 | 0.613 | 0.732 | 0.421 |
+| V2 - Baseline | **0.422** | 0.724 | 0.515 | 0.399 | 0.338 | 0.673 |
+| V3 - Deep | 0.319 | 0.981 | 0.091 | 0.052 | 0.081 | 0.815 |
+ 
+V2 generalizes best on the metric that matters here. Its validation macro F1 (0.422) is about 0.10 higher than V1 (0.311) and V3 (0.319). V1 and V3 reach similar macro F1 for opposite reasons. V1 spreads its predictions across the minority classes at the cost of the majority class, while V3 collapses to the majority class. V2 is the only variation that keeps reasonable operating recall (0.724) while still finding about half of acquired companies (0.515).
+ 
+V1 has the highest validation recall for closed (0.613) and IPO (0.732), but this comes from over-predicting those classes. It also misclassifies most operating companies, and macro F1 penalizes that because precis
+
+---CELL 139 markdown ---
+## 7.2 Model Complexity and Hyperparameter Variations
+
+### Boosting vs. bagging
+
+| | Random Forest (Week 6) | Gradient Boosting (Week 7) |
+|---|---|---|
+| How trees are built | In parallel, each on a random sample of the data | One after another, each fit to the previous trees' errors |
+| Individual trees | Deep, low bias, high variance | Shallow "weak learners," high bias |
+| How the ensemble improves | Averaging many trees reduces variance | Each new tree reduces bias |
+| Main overfitting risk | Trees grown so deep they memorize the data | Too many trees, too high a learning rate, or trees that are too deep |
+
+**Bias-variance tradeoff.** A Random Forest gets its accuracy by averaging away variance, so its error mostly depends on how expressive each tree is. Boosting works the other way around: it starts with a simple, high-bias model and lowers the bias with every tree it adds. This means every added tree makes the model more flexible, so training performance can keep rising while validation performance eventually stops improving or gets worse. That matters for us because Week 6 already showed our models overfitting to the operating class. With so few IPO, acquired, and closed companies, a boosted model could keep fitting noise in those small classes and push training scores up without helping on validation.
+
+### Hyperparameters we vary
+
+- `learning_rate`: how much each new tree is allowed to change the predictions. Small values learn slowly and cautiously. Large values fit quickly and overfit more easily.
+- `max_depth`: how deep each tree can grow, which controls how complicated the patterns inside one tree can be. Deeper trees can capture interactions, such as funding amount together with country, but they can also memorize individual companies.
+- `max_iter`: the number of boosting rounds (trees). This is the same idea as `n_estimators` in Random Forest. More rounds give the model more total capacity.
+
+These three work together. A low learning rate needs more trees to reach the same fit, and deeper trees need fewer. We move all three together from conservative to aggressive, so V1 to V3 represents increasing model capacity, as it did in Week 6.
+
+| Variation | Description | learning_rate | max_depth | max_iter |
+|---|---|---|---|---|
+| V1 - Shallow | Conservative: small steps, simple trees, few rounds | 0.05 | 3 | 100 |
+| V2 - Moderate | Middle ground | 0.10 | 6 | 200 |
+| V3 - Deep | Aggressive: big steps, deep trees, many rounds | 0.20 | 8 | 300 |
+
+### Settings held constant
+
+- `class_weight='balanced'`, with weights calculated from the training rows.
+- `random_state=42`, the same seed as Week 6.
+- `max_leaf_nodes=None`. By default this model stops trees at 31 leaves, which would quietly limit `max_depth` for V2 and V3. Removing the cap means `max_depth` is the only thing controlling tree size.
+- `early_stopping=False`. By default this model starts holding out part of the training data and stops early once a dataset is larger than 10,000 rows
+
+---CELL 148 markdown ---
+## 7.5 Analysis and Model Selection
+
+Here we look at how Gradient Boosting scales from V1 to V3, compare how well each version performs on validation data, and choose our top model to match against the Week 6 Random Forest baseline.
+
+### Training vs. validation as complexity increases (V1 to V3)
+
+As we scale `learning_rate`, `max_depth`, and `max_iter` together, training performance climbs rapidly while validation performance peaks in the middle and drops off at high rate. Training macro F1 moves from 0.388 (V1) to 0.668 (V2) to 0.976 (V3). Validation macro F1 goes from 0.365 (V1) to 0.435 (V2) before falling back to 0.412 (V3). The train-minus-validation gap in macro F1 widens from 0.023 (V1) to 0.233 (V2) to 0.564 (V3).
+
+* **V1 (Shallow: `learning_rate=0.05`, `max_depth=3`, `max_iter=100`) underfits.** The training and validation macro F1 scores are nearly identical (0.388 vs. 0.365), confirming that the model is not memorizing noise. However, depth-3 trees with slow learning steps lack the capacity to separate the four outcomes. Driven by `class_weight='balanced'`, V1 aggressively over-predicts the minority classes: it catches 72.7% of validation IPOs, but its IPO precision is only 0.123 (meaning nearly 88% of its IPO predictions are false alarms). Because it misclassifies almost half of the operating companies (0.526 recall), overall validation accuracy sits at 52.8%, well below the 81.7% all-operating baseline.
+
+* **V2 (Moderate: `learning_rate=0.10`, `max_depth=6`, `max_iter=200`) balances fit and generalization.** Stepping up to depth 6 and 200 rounds gives the sequential trees enough depth to capture trends between our PCA funding components and industry/country flags. Validation macro F1 peaks here at **0.435**. While V2 shows s,some overfitting on the training set (train macro F1 of 0.668 and 1.000 IPO train recall), it brings back the strongest minority-class signal on validation data without collapsing on the majority class.
+
+* **V3 (Deep: `learning_rate=0.20`, `max_depth=8`, `max_iter=300`) overfits.** With large learning steps and 300 deep trees, the ensemble memorizes the training rows (0.976 train macro F1 and 0.894–1.000 train precision across all classes). On the validation set, macro F1 drops to 0.412. Because each boosting round chases residual errors on individual training companies, the decision boundaries become too specific to generalize. On validation data, V3 retreats toward the majority class (0.885 operating recall) and loses its ability to detect minority outcomes, with validation recall falling to 0.350 for acquired, 0.193 for closed, and 0.167 for IPO.
+
+### Validation performance across variations
+
+| Variation | Val Macro F1 | Recall (Operating) | Recall (Acquired) | Recall (Closed) | Recall (IPO) | Precision (Acquired) | Precision (Closed) | Precision (IPO) | Val Accuracy |
+|---|---|---|---|---|---|---|---|---|---|
+| V1 - Shallow | 0.365 | 0.526 | 0.538 | **0.491** | **0.727** | 0.236 | 0.168 | 0.123 | 0.528 |
+| V2
+
+---CELL 149 markdown ---
+## 7.6 Summary Report
+
+### Why We Chose Gradient Boosting
+In Week 7 we evaluated `HistGradientBoostingClassifier` to test whether sequential boosting could improve on our Week 6 Random Forest results—specifically on minority class detection:
+
+* **Sequential Error Correction:** Unlike Random Forest, which averages independent deep trees, Gradient Boosting builds shallow trees one after another. Each new tree focuses directly on the errors made by the previous ensemble, forcing later trees to pay continuous attention to hard-to-classify IPO, acquired, and closed startups.
+* **Fast Histogram Binning on Mixed Data:** `HistGradientBoostingClassifier` buckets continuous features into 255 bins before finding splits. Because 46 of our 51 features are already 0/1 binary flags (country, industry, and missingness indicators) and the remaining 5 are continuous PCA components, histogram binning trains rapidly with virtually zero loss in split precision.
+* **Consistent Imbalance Handling:** Like Random Forest, it natively supports `class_weight='balanced'`, allowing us to penalize minority-class errors using our training-set weights (IPO 12.58 vs. operating 0.31) without generating synthetic SMOTE rows across binary flags.
+
+### Hyperparameters and Model Complexity
+In Gradient Boosting, complexity is governed by the interaction of step size, tree depth, and the number of boosting rounds. We varied all three together while holding `max_leaf_nodes=None`, `early_stopping=False`, `class_weight='balanced'`, and `random_state=42` constant across our 29,782 training rows and 9,928 validation rows:
+
+* **`learning_rate` (0.05 → 0.10 → 0.20):** Controls how strongly each tree adjusts the ensemble's predictions. Lower rates learn cautiously; higher rates fit training residuals faster but risk memorizing noise.
+* **`max_depth` (3 → 6 → 8):** Limits the interaction depth of each weak learner. Depth 3 captures only simple splits, while depth 8 allows complex multi-feature rules.
+* **`max_iter` (100 → 200 → 300):** The total number of sequential trees added to the ensemble.
+
+### Evaluation Metrics
+Because 81.7% of companies are still operating, raw accuracy rewards models that ignore acquisitions, closures, and IPOs. We evaluated models using:
+* **Macro F1 (Primary Metric):** Weights all four outcomes equally, penalizing both underfit models that spam minority predictions and overfit models that default to "operating."
+* **Per-Class Recall & Precision:** Recall measures what fraction of actual outcomes we catch, while precision (added in Week 7) measures how trustworthy those predictions are—exposing models like V1 that achieve high IPO recall (0.727) only by suffering low IPO precision (0.123).
+
+### Week 6 vs. Week 7 Comparison & Final Winner
+Across all six models trained in Weeks 6 and 7, **Gradient Boosting V2 (`learning_rate=0.10, max_depth=6, max_iter=200`)** is our overall winner:
+
+| Model | Val Macro F1 | Recall (Operating) | Recall (Acquired) | Recall (Closed) | Recal
+
+---CELL 151 code ---
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
+# Three-panel Train vs. Validation chart 
+metrics_labels = ['Macro F1', 'Operating', 'Acquired', 'Closed', 'IPO']
+metric_cols_plot = ['Macro F1', 'Recall (Operating)', 'Recall (Acquired)', 'Recall (Closed)', 'Recall (IPO)']
+
+x = np.arange(len(metrics_labels))
+width = 0.35
+
+fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+
+configs = [
+    ('V1 - Shallow', 'V1: Shallow (LR=0.05, Depth=3, Iter=100)', axes[0]),
+    ('V2 - Moderate', 'V2: Moderate (LR=0.10, Depth=6, Iter=200)', axes[1]),
+    ('V3 - Deep', 'V3: Deep (LR=0.20, Depth=8, Iter=300)', axes[2]),
+]
+
+for var_key, title, ax in configs:
+    train_scores = metrics_table_w7.loc[
+        (metrics_table_w7['Variation'] == var_key) & (metrics_table_w7['Dataset'] == 'Train'),
+        metric_cols_plot
+    ].values.flatten()
+    val_scores = metrics_table_w7.loc[
+        (metrics_table_w7['Variation'] == var_key) & (metrics_table_w7['Dataset'] == 'Validation'),
+        metric_cols_plot
+    ].values.flatten()
+
+    ax.bar(x - width/2, train_scores, width, label='Train', color='#4A90E2', alpha=0.9)
+    ax.bar(x + width/2, val_scores, width, label='Validation', color='#F5A623', alpha=0.9)
+
+    ax.set_title(title, fontsize=12, fontweight='bold', pad=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics_labels, rotation=25, ha='right', fontsize=10)
+    ax.set_ylim(0, 1.1)
+    ax.grid(axis='y', linestyle='--', alpha=0.4)
+    ax.legend(loc='upper right', frameon=True)
+
+    if var_key == 'V2 - Moderate':
+        top_f1 = val_scores[0]
+        ax.annotate(f'Top Val F1 ({top_f1:.3f})', xy=(0 + width/2, top_f1), xytext=(0.5, 0.58),
+                    arrowprops=dict(facecolor='black', shrink=0.08, width=1, headwidth=6),
+                    fontsize=9, fontweight='bold')
+
+axes[0].set_ylabel('Score (Macro F1 / Recall)', fontsize=11, fontweight='bold')
+plt.suptitle('Gradient Boosting Complexity vs Generalization Across Startup Outcomes', fontsize=14, y=1.02)
+plt.tight_layout()
+plt.show()
+
+# Winning Model (V2) Validation Recall vs. Precision & Normalized Confusion Matrix
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+
+# Left panel- Validation Recall vs. Precision per class for V2 
+v2_val_row = metrics_table_w7[
+    (metrics_table_w7['Variation'] == 'V2 - Moderate') & (metrics_table_w7['Dataset'] == 'Validation')
+]
+recalls_v2 = [v2_val_row[f'Recall ({c})'].values[0] for c in class_labels]
+precisions_v2 = [v2_val_row[f'Precision ({c})'].values[0] for c in class_labels]
+
+x_cls = np.arange(len(class_labels))
+axes[0].bar(x_cls - width/2, recalls_v2, width, label='Recall', color='#4A90E2', alpha=0.9)
+axes[0].bar(x_cls + width/2, precisions_v2, width, label='Precision', color='#2ECC71', alpha=0.9)
+axes[0].set_title('V2 Moderate (Winner): Validation Recall vs. Precision', fontsize=12, fontweight='bold', pad=12)
+axes[0].set_xticks(x_cls)
+axes[0].set_xticklabels(class_labels, fontsize=10)
+axes[0].set_ylabel('Score', f
+
+---CELL 160 code ---
+import pickle
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+from threadpoolctl import threadpool_limits
+
+# --- Why this cell pins threads and reuses saved models -----------------------
+# MLPClassifier runs its forward/backward passes as NumPy matmuls, which dispatch
+# to multithreaded BLAS. Floating-point addition is not associative, so the order
+# the threads reduce in - and therefore the last bit of every result - depends on
+# how they happen to interleave. `random_state` fixes the weight init and the
+# batch shuffling, but it has no say over that. Across 300 Adam epochs with almost
+# no regularization (V3 uses alpha=1e-6) those last-bit differences compound into
+# a measurably different model: V3's validation macro F1 moved by ~0.005 between
+# two runs of identical code. Weeks 6 and 7 are unaffected, because Random Forest
+# and HistGradientBoosting use sklearn's own deterministic kernels, not BLAS
+# reductions.
+#
+# Two fixes, both applied below:
+#   1. Pin BLAS to a single thread for the fit, which makes it bit-reproducible.
+#      `threadpool_limits` is scoped to this block, so nothing else loses cores.
+#   2. Reuse a model already saved in models/, so re-running the notebook cannot
+#      silently move numbers that the Week 8 and Week 9 write-ups quote.
+# Delete models/week8_mlp_*.pkl to force a clean retrain.
+# ------------------------------------------------------------------------------
+
+trained_models = {}
+
+for name, params in variations.items():
+    model_path = MODELS_DIR / f"week8_mlp_{name}.pkl"
+
+    if model_path.exists():
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        mlp = model.named_steps['mlp']
+        print(f"Loaded '{name}' from {model_path.name}: epochs run: {mlp.n_iter_}, "
+              f"final loss: {mlp.loss_:.4f}")
+    else:
+        model = build_mlp(params)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always', ConvergenceWarning)
+            with threadpool_limits(limits=1):
+                model.fit(X_train_bal, y_train_bal)
+        converged = not any(issubclass(w.category, ConvergenceWarning) for w in caught)
+        mlp = model.named_steps['mlp']
+        print(f"Trained '{name}': {params}, epochs run: {mlp.n_iter_}, "
+              f"final loss: {mlp.loss_:.4f}, converged: {converged}")
+
+    trained_models[name] = model
+
+print(f"\n{len(trained_models)} MLP models ready.")
+
+---CELL 167 code ---
+# Train vs. validation gap for each MLP variation
+train = metrics_table_w8[metrics_table_w8['Dataset'] == 'Train'].set_index('Variation')
+val = metrics_table_w8[metrics_table_w8['Dataset'] == 'Validation'].set_index('Variation')
+
+gap_table = pd.DataFrame({
+    'Train Macro F1': train['Macro F1'],
+    'Val Macro F1': val['Macro F1'],
+    'Gap (Train - Val)': train['Macro F1'] - val['Macro F1'],
+})
+
+# Winning MLP = highest validation macro F1 (same rule as Weeks 6 and 7)
+best_variation = val['Macro F1'].idxmax()
+
+# Compare against Week 7's best model (Gradient Boosting V2)
+cols = ['Macro F1', 'Recall (Operating)', 'Recall (Acquired)', 'Recall (Closed)', 'Recall (IPO)',
+        'Precision (Acquired)', 'Precision (Closed)', 'Precision (IPO)']
+w7_best = metrics_table_w7[(metrics_table_w7['Variation'] == 'V2 - Moderate') &
+                           (metrics_table_w7['Dataset'] == 'Validation')].iloc[0][cols]
+
+comparison = pd.DataFrame({
+    'Week 7: Gradient Boosting V2': w7_best,
+    f'Week 8: MLP {best_variation}': val.loc[best_variation, cols],
+}).T
+
+with pd.option_context('display.float_format', '{:.3f}'.format):
+    display(gap_table)
+    print(f"Winning MLP variation: {best_variation}\n")
+    display(comparison)
+
+---CELL 168 markdown ---
+### Validation performance across variations
+
+| Variation | Val Macro F1 | Recall (Operating) | Recall (Acquired) | Recall (Closed) | Recall (IPO) | Precision (Acquired) | Precision (Closed) | Precision (IPO) | Val Accuracy |
+|---|---|---|---|---|---|---|---|---|---|
+| V1 - Small | 0.369 | 0.555 | **0.546** | **0.480** | **0.611** | **0.236** | **0.181** | 0.112 | 0.549 |
+| V2 - Moderate | 0.374 | 0.663 | 0.458 | 0.372 | 0.308 | 0.214 | 0.165 | 0.163 | 0.616 |
+| V3 - Large | **0.378** | **0.729** | 0.392 | 0.325 | 0.247 | 0.221 | 0.172 | **0.176** | **0.659** |
+
+V1 has the best recall on all three small classes, but only because it labels too many companies as acquired, closed, or IPO (low precision). V3 has the best macro F1, operating recall, and accuracy, but it gets there by drifting back toward operating and missing most closed and IPO companies. No variation beats the 81.7% all-operating accuracy.
+
+### Model selection
+
+We select **V3 (Large: `hidden_layer_sizes=(256, 128, 64)`, `alpha=1e-6`, `learning_rate_init=0.01`)** as our winning MLP, using the same rule as Weeks 6 and 7: the highest validation macro F1 (0.378). It also has the highest accuracy (0.659) and the best precision on IPO (0.176).
+
+The margin is very thin, and we should be honest about what it is worth. V3 beats V2 by 0.004 macro F1 (0.378 vs. 0.374, with V1 at 0.369), which is smaller than the roughly 0.005 run-to-run movement we measured for these MLPs in Section 8.3. In other words, the ordering of V3 and V2 is inside the noise floor of the training procedure and should not be presented as a real difference. V3 also has the largest overfitting gap (0.388), so its training scores should not be used to judge how it will do on new companies. We keep V3 as the nominal winner to stay consistent with the Weeks 6 and 7 selection rule, but the honest reading is that all three MLP variations perform about equally badly on validation.
+
+### Comparison with Week 7's best model
+
+| Model | Val Macro F1 | Recall (Operating) | Recall (Acquired) | Recall (Closed) | Recall (IPO) | Precision (Acquired) | Precision (Closed) | Precision (IPO) | Val Accuracy |
+|---|---|---|---|---|---|---|---|---|---|
+| **Week 7: Gradient Boosting V2** | **0.435** | 0.699 | **0.564** | **0.433** | **0.460** | **0.291** | **0.201** | **0.207** | **0.662** |
+| Week 8: MLP V3 | 0.378 | **0.729** | 0.392 | 0.325 | 0.247 | 0.221 | 0.172 | 0.176 | 0.659 |
+
+The MLP does not beat Week 7. Validation macro F1 falls from 0.435 to 0.378. The MLP is ahead on exactly one column, operating recall (0.729 vs. 0.699), which is the easiest class and the one a model drifts toward when it gives up on the minority classes. Gradient Boosting V2 is ahead on recall for all three small classes (acquired 0.564 vs. 0.392, closed 0.433 vs. 0.325, IPO 0.460 vs. 0.247), on precision for all three, and now on accuracy as well (0.662 vs. 0.659). It is also the hardest of our models to interpret, since it has no feature importances. **Gradient 
+
+---CELL 169 markdown ---
+## 8.6 Summary Report
+
+**Key results:**
+* Training macro F1 rose from 0.419 (V1) to 0.767 (V3), but validation macro F1 only moved from 0.369 to 0.378, so the train-validation gap grew from 0.050 to 0.388. V1 underfits, and V2 and V3 overfit.
+* **V3 (Large)** is the winning MLP, with the highest validation macro F1 (0.378).
+* The MLP does not beat Week 7's best model (validation macro F1 0.378 vs. 0.435 for Gradient Boosting V2). **Gradient Boosting V2 stays ahead, and the Week 8 MLP is not carried forward.**
+
+**A note on reproducibility.** Unlike the Week 6 and Week 7 ensembles, these MLPs are not bit-reproducible by default. `random_state=42` fixes the weight initialisation and the batch order, but the matrix multiplies inside each epoch run on multithreaded BLAS, where floating-point addition is not associative and the reduction order shifts with thread scheduling. Over 300 epochs with `alpha=1e-6` that compounds, and V3's validation macro F1 shifted by about 0.005 between two runs of unchanged code. Section 8.3 now pins BLAS to one thread for the fit and reuses any model already saved in `models/`, so the figures above stay fixed. The sensitivity is itself a symptom: a model whose score moves with thread scheduling is sitting in a flat, unstable region of the loss surface, which is consistent with V3 being the most overfit of the three.
+
+---CELL 170 markdown ---
+# Week 9 - 11/2/2026: Model Evaluation
+
+## 9.1 Common-Path Validation Evaluation
+
+Weeks 6, 7 and 8 each scored their own three variations in their own cell with different helper codes and different metric sets. Before we can accurately compare all nine models on one chart, they have to go through one scoring function on the same validation rows.
+
+That's what we start doing in this week's assignment. This section reloads all nine saved models from `models/`, runs each one through a single `score_model()` helper on the untouched Week 5 split, and produces one nine-row table. ** If you guys are having trouble or getting errors, try restarting the kernel then run from top to bottom. Had to do it since some of the models are too big to upload to github - Tyler**
+
+**What we compute.** Log loss on train and on validation is the loss metric the Week 9 complexity chart is built on. Unlike macro F1 it reads the predicted probabilities isntead of the hard label, so it punishes a model that is confidently wrong and moves smoothly as complexity grows. In the end, thisis what makes a train vs validation gap visible. We also record accuracy, macro precision, macro recall, macro F1 and ROC-AUC so the table stands on its own.
+
+**How `complexity_rank` is assigned.** Ranking V1 to V3 inside a family is relateively easy, but the chart needs all nine models on one axis, so we need a measure that is comparable across families. We use the number of learned parameters each fitted model actually holds: total tree nodes for the Random Forests and the Gradient Boosting ensembles, and total weights plus biases for the MLPs. This is read off the trained object, not off the hyperparameters, so it reflects the model that was really fit. Ranks run 1 (fewest parameters, simplest) to 9 (most parameters, most complex).
+
+It is important to remember that what we did is a capacity proxy and not a universal complexity scale. We do acknowledge that a tree node and a network weight are not the same kind of thing. We note that important caveat here so the Week 9 chart is read as *within-this-study* ordering rather than a claim that an MLP weight and a tree node are interchangeable.
+
+---CELL 173 code ---
+# Check 1: exactly nine models, ranked 1 to 9 with no ties or gaps.
+assert len(eval_table_w9) == 9, "expected one row per model"
+assert sorted(eval_table_w9['complexity_rank']) == list(range(1, 10))
+assert eval_table_w9['n_params'].is_monotonic_increasing, "rank must follow parameter count"
+
+# Check 2: within each family the ranks still run V1 < V2 < V3. If a family broke this, the cross-family parameter count would be contradicting the design of that week.
+print("Within-family ordering (should be increasing in each family):")
+for family, grp in eval_table_w9.groupby('family', sort=False):
+    ranks = grp.sort_values('variation')[['variation', 'complexity_rank', 'n_params']]
+    ordered = ranks['complexity_rank'].is_monotonic_increasing
+    print(f"  {family:<18} {list(zip(ranks['variation'], ranks['complexity_rank']))} -> ok: {ordered}")
+    assert ordered, f"{family}: V1-V3 ranks are out of order"
+
+# Check 3: every model beats a uniform 25% guess (log loss ln(4) = 1.386) on validation.
+uniform_loss = np.log(4)
+print(f"\nUniform-guess log loss: {uniform_loss:.3f}")
+print("Models worse than a uniform guess on validation:",
+      eval_table_w9.loc[eval_table_w9['val_log_loss'] > uniform_loss, 'model'].tolist() or "none")
+
+# Check 4: validation log loss should not beat training log loss. A negative gap would mean the model does better on rows it never saw, which points at a split problem.
+negative_gap = eval_table_w9.loc[eval_table_w9['overfit_gap'] < 0, ['model', 'overfit_gap']]
+print("\nModels with validation log loss below training log loss:",
+      negative_gap['model'].tolist() or "none")
+
+# Check 5: the macro F1 figures reproduce Weeks 6-8, which proves the common path did not change the scoring. Week 8's table is the one still in memory.
+w8_check = (
+    metrics_table_w8[metrics_table_w8['Dataset'] == 'Validation']
+    .set_index('Variation')['Macro F1']
+)
+w9_mlp = (
+    eval_table_w9[eval_table_w9['family'] == 'Neural Network']
+    .set_index('variation')['val_f1_macro']
+)
+mlp_map = {'V1': 'V1 - Small', 'V2': 'V2 - Moderate', 'V3': 'V3 - Large'}
+print("\nMLP macro F1, Week 8 table vs. Week 9 common path:")
+for variation, w8_name in mlp_map.items():
+    w8_val, w9_val = w8_check[w8_name], w9_mlp[variation] 
+    print(f"  {w8_name:<16} week 8: {w8_val:.3f}   week 9: {w9_val:.3f}   "
+          f"match: {np.isclose(w8_val, w9_val, atol=5e-4)}")
+
+# Check 6: no test rows leaked into the evaluation.
+assert set(X_val.index).isdisjoint(test_idx), "validation rows overlap the test set"
+assert set(X_train.index).isdisjoint(test_idx), "training rows overlap the test set"
+assert set(X_train.index).isdisjoint(X_val.index), "train and validation overlap"
+print("\nNo test rows were used, and train and validation do not overlap.")
+
+---CELL 174 markdown ---
+### 9.1 Summary
+
+All nine models from Weeks 6 to 8 were reloaded from `models/` and scored through a single `score_model()` helper on the same Week 5 validation split. Nothing was retrained, and no test rows were touched.
+
+The table above has one row per model, ordered by `complexity_rank` (1 = fewest learned parameters, 9 = most). It carries train and validation log loss, the train-validation gap, and validation accuracy, macro precision, macro recall, macro F1 and macro one-vs-rest ROC-AUC. It's saved to `models/week9_validation_metrics.csv`, with the per-split long form in `models/week9_validation_metrics_long.csv`.
+
+Two things to note going forward. The macro F1 column reproduces the Weeks 6 to 8 figures, which confirms the common path did not accidentally change the scoring. Also, the ranking adds in the three families rather than stacking them week by week, because it is driven by measured capacity: a 100-tree depth-5 forest and a 100-round depth-3 boosting ensemble end up almost neighbours, while the Week 8 MLPs sit at the low end despite being the newest models.
+
+The interpretation of the loss-versus-complexity curve, the chart itself and the model selection follow in the next sections.
+
+---CELL 175 markdown ---
+## 9.2 Bias-Variance Chart and Analysis
+
+This section plots train and validation log loss for all nine models from the 9.1 table, ordered by `complexity_rank`. Every number comes straight from `eval_table_w9`, so nothing here is rescored. Each model's column is shaded by which region it falls in. A model underfits when its training log loss is still high (above 0.9) and the gap is tiny (below 0.1). It overfits when validation log loss sits well above training (gap above 0.4), and anything in between is the sweet spot. The dashed line is the log loss of guessing 25% for every class (ln 4 = 1.386), so any point above that line is worse than a blind guess.
+
+
+---CELL 176 code ---
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+
+# Uses Person 1's 9.1 table as-is (eval_table_w9). Nothing is rescored here.
+bv = eval_table_w9.sort_values('complexity_rank').reset_index(drop=True)
+
+# Region rule, applied to Person 1's numbers:
+#   underfit   = train log loss is still high (> 0.9) and the gap is tiny (< 0.1)
+#   overfit    = validation log loss sits far above training (gap > 0.4)
+#   sweet spot = everything in between
+def region(row):
+    if row['train_log_loss'] > 0.9 and row['overfit_gap'] < 0.1:
+        return 'Underfit'
+    if row['overfit_gap'] > 0.4:
+        return 'Overfit'
+    return 'Sweet spot'
+
+bv['region'] = bv.apply(region, axis=1)
+REGION_COLORS = {'Underfit': '#4C72B0', 'Sweet spot': '#55A868', 'Overfit': '#C44E52'}
+
+fig, ax = plt.subplots(figsize=(12, 6.5))
+x = bv['complexity_rank']
+
+# Shade each model's column by region
+for _, row in bv.iterrows():
+    ax.axvspan(row['complexity_rank'] - 0.5, row['complexity_rank'] + 0.5,
+               color=REGION_COLORS[row['region']], alpha=0.12, lw=0)
+
+ax.plot(x, bv['train_log_loss'], marker='o', lw=2, color='#333333', label='Train log loss')
+ax.plot(x, bv['val_log_loss'], marker='s', lw=2, color='#DD8452', label='Validation log loss')
+
+# Gap bars between the two lines
+for _, row in bv.iterrows():
+    ax.vlines(row['complexity_rank'], row['train_log_loss'], row['val_log_loss'],
+              color='grey', ls=':', lw=1)
+    ax.annotate(f"gap {row['overfit_gap']:.2f}",
+                (row['complexity_rank'], max(row['train_log_loss'], row['val_log_loss'])),
+                textcoords='offset points', xytext=(0, 8), ha='center', fontsize=8, color='grey')
+
+uniform_loss = np.log(4)
+ax.axhline(uniform_loss, color='grey', ls='--', lw=1)
+ax.text(9.45, uniform_loss + 0.04, f'Uniform 25% guess (ln 4 = {uniform_loss:.2f})',
+        ha='right', fontsize=8, color='grey')
+
+ax.set_xticks(x)
+ax.set_xticklabels([f"{r}. {m}" for r, m in zip(bv['complexity_rank'], bv['model'])],
+                   rotation=30, ha='right')
+ax.set_xlim(0.5, 9.5)
+ax.set_ylim(0, bv['val_log_loss'].max() + 0.35)
+ax.set_xlabel('Model, ordered simplest to most complex (complexity_rank = learned parameter count)')
+ax.set_ylabel('Log loss (lower is better)')
+ax.set_title('Week 9: Train vs. Validation Log Loss Across All Nine Models')
+
+handles = ax.get_legend_handles_labels()[0] + [
+    Patch(color=c, alpha=0.3, label=r) for r, c in REGION_COLORS.items()]
+ax.legend(handles=handles, loc='upper left', fontsize=9)
+ax.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+REPORTS_DIR = PROJECT_ROOT / 'reports'
+REPORTS_DIR.mkdir(exist_ok=True)   # create the folder if it isn't there yet
+plt.savefig(REPORTS_DIR / 'week9_bias_variance_chart.png', dpi=200, bbox_inches='tight')
+plt.show()
+
+with pd.option_context('display.float_format', '{:.3f}'.format):
+    display(bv[['complexity_rank', 'model', 'train_log_loss', 'val_log_loss',
+                'overfit_gap', 'val_f1_macro', 'region']])
+
+
+---CELL 177 markdown ---
+### Reading the chart
+
+The chart doesn't form a clean U-shape across all nine models. The ranking mixes three model families, and as 9.1 notes, a tree node and a network weight are not the same kind of parameter. The MLPs overfit at far fewer parameters than the tree models, so MLP V2 and MLP V3 create spikes in the middle of the axis. However, the expected pattern shows up clearly within each family, where the training log loss falls as the model gets bigger, and validation log loss stops improving or gets worse.
+
+| Rank | Model | Train log loss | Val log loss | Gap | Val macro F1 | Region |
+|---|---|---|---|---|---|---|
+| 1 | MLP V1 - Small | 0.993 | 1.059 | 0.066 | 0.369 | Underfit |
+| 2 | MLP V2 - Moderate | 0.642 | 1.690 | 1.048 | 0.374 | Overfit |
+| 3 | RF V1 - Shallow | 1.178 | 1.187 | 0.009 | 0.311 | Underfit |
+| 4 | GB V1 - Shallow | 1.024 | 1.049 | 0.024 | 0.365 | Underfit |
+| 5 | MLP V3 - Large | 0.388 | 2.712 | 2.324 | 0.378 | Overfit |
+| 6 | GB V2 - Moderate | 0.579 | 0.812 | 0.233 | **0.435** | Sweet spot |
+| 7 | GB V3 - Deep | 0.078 | 0.815 | 0.737 | 0.412 | Overfit |
+| 8 | RF V2 - Baseline | 0.698 | 0.828 | 0.130 | 0.422 | Sweet spot |
+| 9 | RF V3 - Deep | 0.117 | 0.621 | 0.504 | 0.319 | Overfit |
+
+### Which models underfit
+
+The three V1 models underfit. MLP V1, RF V1 and GB V1 all have training log loss between 0.99 and 1.18 and gaps of 0.07 or less. The models score about as badly on the training rows as on the validation rows, which means they're too simple to learn the patterns even in the data they were trained on. RF V1's validation log loss (1.187) is close to the 1.386 uniform guess.
+
+### Which models overfit
+
+Four models overfit: MLP V2, MLP V3, GB V3 and RF V3. GB V3 and RF V3 drive training log loss close to zero (0.078 and 0.117), but validation log loss stays near 0.6 to 0.8, so the extra capacity went into memorizing training rows. The MLPs are the worst case. MLP V2 (1.690) and MLP V3 (2.712) score worse on validation than the 25% uniform guess, which means they're confidently wrong on companies they haven't seen.
+
+RF V3 has the lowest validation log loss of all nine models (0.621), but it shouldn't be read as the best model. Log loss rewards a model for putting high probability on the majority class, and in Week 6 RF V3 labeled almost every company as operating, with 81.5% validation accuracy matching the all-operating baseline and a macro F1 of only 0.319. The other models were trained with balanced class weights or oversampling, which pushes their probabilities toward the smaller classes and raises their log loss on a validation set that is 82% operating. So, log loss is useful for showing the train-validation gap, but macro F1 is still the better measure of which model actually finds acquired, closed and IPO companies.
+
+### The sweet spot
+
+GB V2 and RF V2 sit in the sweet spot. Both have validation log loss around 0.81 to 0.83, moderate gaps (0.233 and 0.130), and the two highest validation macro F1 scores of al
+
+---CELL 178 markdown ---
+## 9.3 Winner Selection & Test Set Evaluation
+
+In this section, we are picking our best model and evaluating how it performs on completely unseen data. Based on the validation scores from the last two weeks, we selected the Gradient Boosting V2 (Moderate Complexity) model as our winner. It struck the best balance by achieving the highest validation Macro F1 score, meaning it successfully learned to detect acquisitions, closures, and IPOs instead of just defaulting to the majority "operating" class.
+
+Below we can see:
+
+* **Isolates the test set:** It slices the dataset using the holdout indices we saved back in Week 5 to ensure there is zero data leakage.
+* **Loads the model:** It brings in our saved Gradient Boosting model from the models folder to generate final predictions and probabilities.
+* **Checks performance:** It outputs a full classification report and a visual confusion matrix so we can see the model's precision and recall across all four startup outcomes.
+* **Analyzes generalization:** It builds a summary table comparing the Macro F1 and Accuracy scores across the train, validation, and test splits to confirm the model is robust and not just overfitting.
+
+---CELL 179 code ---
+import pickle
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
+from pathlib import Path
+
+# Define paths robustly relative to the current working directory
+MODELS_DIR = Path.cwd().parent / "models"
+MODEL_PATH = MODELS_DIR / "week7_gb_moderate.pkl"
+
+# Extract the feature columns by excluding the target variable
+feature_cols = [col for col in df_final.columns if col != 'status']
+
+# Isolate the completely unseen test set for our final evaluation
+X_test = df_final.loc[test_idx, feature_cols]
+y_test = df_final.loc[test_idx, 'status']
+
+# Load the winning Gradient Boosting model from disk
+with open(MODEL_PATH, 'rb') as file:
+    best_model = pickle.load(file)
+
+# Generate predictions on the test set exactly once to avoid data leakage
+y_test_pred = best_model.predict(X_test)
+y_test_proba = best_model.predict_proba(X_test)
+
+# Define the chronological outcome categories for clarity
+target_names = ['Operating', 'Acquired', 'Closed', 'IPO']
+
+# Output the comprehensive classification report
+print("--- Test Set Classification Report ---")
+print(classification_report(y_test, y_test_pred, target_names=target_names, zero_division=0))
+
+# Calculate and visualize the row-normalized confusion matrix
+cm_norm = confusion_matrix(y_test, y_test_pred, normalize='true')
+
+fig, ax = plt.subplots(figsize=(9, 7))
+sns.heatmap(
+    cm_norm, 
+    annot=True, 
+    fmt='.2%', 
+    cmap='Blues',
+    cbar_kws={'label': 'Proportion of True Class'},
+    xticklabels=target_names, 
+    yticklabels=target_names, 
+    ax=ax
+)
+ax.set_title('Normalized Test Set Confusion Matrix\nGradient Boosting V2 (Moderate)', pad=15, fontweight='bold')
+ax.set_ylabel('True Startup Status', fontweight='bold')
+ax.set_xlabel('Predicted Startup Status', fontweight='bold')
+plt.tight_layout()
+plt.show()
+
+# Re-slice train and validation sets for a clean comparison
+X_train, y_train = df_final.loc[train_idx, feature_cols], df_final.loc[train_idx, 'status']
+X_val, y_val = df_final.loc[val_idx, feature_cols], df_final.loc[val_idx, 'status']
+
+# Generate comparative predictions
+y_train_pred = best_model.predict(X_train)
+y_val_pred = best_model.predict(X_val)
+
+# Construct a structured summary of metric shifts across data splits
+metrics_compare = {
+    'Dataset': ['Train', 'Validation', 'Test'],
+    'Accuracy': [
+        accuracy_score(y_train, y_train_pred),
+        accuracy_score(y_val, y_val_pred),
+        accuracy_score(y_test, y_test_pred)
+    ],
+    'Macro F1': [
+        f1_score(y_train, y_train_pred, average='macro', zero_division=0),
+        f1_score(y_val, y_val_pred, average='macro', zero_division=0),
+        f1_score(y_test, y_test_pred, average='macro', zero_division=0)
+    ]
+}
+
+# Convert to a pandas DataFrame and calculate the performance drop between stages
+df_metrics = pd.DataFrame(metrics_compare).set_index('Dataset')
+df_metrics['Drop from Previous'] = df_metrics['Macro 
+
+---CELL 180 markdown ---
+### 9.3 Model Selection, Test Generalization, and Business Evaluation
+
+#### Model Choice & Test Results
+We selected **Gradient Boosting V2 (Moderate Complexity)** as our winning model based on validation Macro F1 and balanced minority-class handling. 
+
+Evaluating the model on the unseen test set confirmed stable generalization with virtually zero selection optimism[cite: 1]:
+* **Metric Shift:** Test Macro F1 reached **0.4312** (a minimal **-0.0033** change from validation), with overall accuracy holding at **66.10%**[cite: 1].
+* **Class Recovery:** The model captured **51.82%** of acquisitions, **46.19%** of IPOs, **47.10%** of closures, and **69.89%** of operating companies[cite: 1]. 
+* **Precision Tradeoff:** Prioritizing recall resulted in lower minority precision (**0.20 to 0.27**), reflecting a wider net with more false positives[cite: 1].
+
+#### Business Evaluation
+While startup trajectories are subject to external market noise that tabular data cannot fully capture, identifying roughly half of all liquidity events and closures on unseen data offers substantial business utility over the naive baseline[cite: 1]. The model provides an actionable early-screening mechanism for identifying critical portfolio outcomes.
+
