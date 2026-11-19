@@ -1,0 +1,47 @@
+feature,type,measure,strength,strength_US_vs_nonUS,level
+PC1,Principal component (model input),Eta,0.25952050716195274,0.21561998891444953,weak-moderate
+log_funding_total_usd,"Numeric (original, pre-PCA)",Eta,0.23869964531727167,0.18240476183105722,weak-moderate
+log_avg_funding_per_round,"Numeric (original, pre-PCA)",Eta,0.22885958432370504,0.16484389912009315,weak-moderate
+cat_Unknown,Category tag,Cramér's V,0.20811270889038716,0.2066834180165368,weak-moderate
+founded_year,"Numeric (original, pre-PCA)",Eta,0.18432721923022152,0.1431580215495517,weak-moderate
+funding_rounds,"Numeric (original, pre-PCA)",Eta,0.17254830666007706,0.16570267534607752,weak-moderate
+log_funding_span_days,"Numeric (original, pre-PCA)",Eta,0.16797963806564575,0.15426505048659583,weak-moderate
+log_days_to_first_funding,"Numeric (original, pre-PCA)",Eta,0.1532068696238697,0.12406067444168267,weak-moderate
+funding_missing,Data-quality flag,Cramér's V,0.11985905771605647,0.09055277426542636,weak-moderate
+cat_E-Commerce,Category tag,Cramér's V,0.10322177691923241,0.08832686536927215,weak-moderate
+cat_Biotechnology,Category tag,Cramér's V,0.10111929977609618,0.09254260017244059,weak-moderate
+cat_other,Category tag,Cramér's V,0.10052343120753393,0.0610871826899851,weak-moderate
+PC4,Principal component (model input),Eta,0.09604822691166783,0.07026672351752698,negligible
+PC2,Principal component (model input),Eta,0.08731145047658599,0.021994165782285535,negligible
+log_rounds_per_year,"Numeric (original, pre-PCA)",Eta,0.07996604143849805,0.047281768939212494,negligible
+cat_Services,Category tag,Cramér's V,0.07355443849834613,0.06839715857374222,negligible
+cat_Health_Care,Category tag,Cramér's V,0.0692176860208454,0.06342937402116577,negligible
+funded_before_founding,Data-quality flag,Cramér's V,0.06754274387806984,0.04773935648971915,negligible
+PC5,Principal component (model input),Eta,0.06581396928192015,0.0302115380906285,negligible
+cat_Software,Category tag,Cramér's V,0.06443556723130618,0.046258461990382645,negligible
+cat_Enterprise_Software,Category tag,Cramér's V,0.06354094314970668,0.05483361248011399,negligible
+cat_Internet,Category tag,Cramér's V,0.06124401392875344,0.05036635442073223,negligible
+cat_Apps,Category tag,Cramér's V,0.06035122577744895,0.05606843147484765,negligible
+PC3,Principal component (model input),Eta,0.05612827966329957,0.041606796334954434,negligible
+cat_Manufacturing,Category tag,Cramér's V,0.055625495406442606,0.018039985102242605,negligible
+cat_Travel,Category tag,Cramér's V,0.05556803070768759,0.0458033219109163,negligible
+cat_Games,Category tag,Cramér's V,0.05051087924054536,0.029078358428756838,negligible
+cat_Health_and_Wellness,Category tag,Cramér's V,0.05011910064604787,0.047521325836194145,negligible
+cat_Security,Category tag,Cramér's V,0.04853394463054012,0.016089045935582705,negligible
+cat_Marketplaces,Category tag,Cramér's V,0.0439372088262245,0.025757442729134352,negligible
+cat_Hardware_+_Software,Category tag,Cramér's V,0.03995217184187729,0.031781592201616124,negligible
+cat_Clean_Technology,Category tag,Cramér's V,0.039593627377481774,0.02823436226450667,negligible
+cat_Social_Media,Category tag,Cramér's V,0.038329973798087065,0.020295984500457977,negligible
+cat_SaaS,Category tag,Cramér's V,0.037821177044770546,0.01538710181885505,negligible
+cat_Education,Category tag,Cramér's V,0.037244914022141945,0.004891266340421192,negligible
+cat_Analytics,Category tag,Cramér's V,0.036792876820859494,0.021420900035930338,negligible
+cat_Mobile,Category tag,Cramér's V,0.0365847333823624,0.019427110103405646,negligible
+cat_Video,Category tag,Cramér's V,0.033255350012032225,0.011452151411968979,negligible
+cat_Advertising,Category tag,Cramér's V,0.02866396257616077,0.015913157900389843,negligible
+cat_Finance,Category tag,Cramér's V,0.027651856841342113,0.01616418717659765,negligible
+cat_Cloud_Computing,Category tag,Cramér's V,0.02739868683652365,0.011073345188483482,negligible
+cat_Big_Data,Category tag,Cramér's V,0.02531219270343271,0.012117023636149492,negligible
+cat_Technology,Category tag,Cramér's V,0.022606469886931265,0.0016582489664458012,negligible
+cat_Entertainment,Category tag,Cramér's V,0.022566301692277437,0.01179859738527622,negligible
+cat_Curated_Web,Category tag,Cramér's V,0.021892799731157944,0.0015608814461899783,negligible
+cat_Fashion,Category tag,Cramér's V,0.021324613153235836,0.014554365469044286,negligible

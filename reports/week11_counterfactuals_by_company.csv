@@ -1,26 +1,26 @@
 idx,Company,Predicted,Feature,Change,New prediction
-15626,Elevate Research,Operating,Total funding,no value in the range flips it,-
-15626,Elevate Research,Operating,Number of funding rounds,no value in the range flips it,-
-15626,Elevate Research,Operating,Days to first funding,0.6 -> 0.2 years (-0.4),Closed (P = 0.46)
-15626,Elevate Research,Operating,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
-15626,Elevate Research,Operating,Country,USA -> other country,Unknown -> Closed
-11091,Fragegg,Closed,Total funding,no value in the range flips it,-
-11091,Fragegg,Closed,Number of funding rounds,1 -> 3 rounds (+2),Operating (P = 0.40)
-11091,Fragegg,Closed,Days to first funding,0.0 -> 3.4 years (+3.4),Operating (P = 0.46)
-11091,Fragegg,Closed,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
-11091,Fragegg,Closed,Country,GBR -> other country,no country flips it
-52637,Wonga,Acquired,Total funding,"$145,393,366 -> $190,690,898 (+$45,297,532)",Operating (P = 0.60)
-52637,Wonga,Acquired,Number of funding rounds,5 -> 7 rounds (+2),Operating (P = 0.74)
-52637,Wonga,Acquired,Days to first funding,0.0 -> 0.3 years (+0.3),IPO (P = 0.41)
-52637,Wonga,Acquired,Time between first and last round,3.7 -> 4.4 years (+0.6),Operating (P = 0.59)
-52637,Wonga,Acquired,Country,GBR -> other country,"AUS -> IPO, FRA -> Closed"
-2018,imobile-Audio,Operating,Total funding,no value in the range flips it,-
-2018,imobile-Audio,Operating,Number of funding rounds,no value in the range flips it,-
-2018,imobile-Audio,Operating,Days to first funding,2.3 -> 2.1 years (-0.1),Closed (P = 0.52)
-2018,imobile-Audio,Operating,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
-2018,imobile-Audio,Operating,Country,USA -> other country,Unknown -> Closed
-65435,VanityCube,Operating,Total funding,no value in the range flips it,-
-65435,VanityCube,Operating,Number of funding rounds,no value in the range flips it,-
-65435,VanityCube,Operating,Days to first funding,no value in the range flips it,-
-65435,VanityCube,Operating,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
-65435,VanityCube,Operating,Country,IND -> other country,no country flips it
+28849,SHAPE,Acquired,Total funding,"$2,500,000 -> $2,699,438 (+$199,438)",Operating (P = 0.43)
+28849,SHAPE,Acquired,Number of funding rounds,1 -> 4 rounds (+3),Operating (P = 0.53)
+28849,SHAPE,Acquired,Days to first funding,13.1 -> 6.5 years (-6.6),Operating (P = 0.37)
+28849,SHAPE,Acquired,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
+28849,SHAPE,Acquired,Country,DEU -> other country,"CAN -> Operating, CHN -> Operating, FRA -> Operating, GBR -> Operating, IND -> Operating"
+35791,Stio,Operating,Total funding,"$5,900,000 -> $14,262,161 (+$8,362,161)",IPO (P = 0.45)
+35791,Stio,Operating,Number of funding rounds,no value in the range flips it,-
+35791,Stio,Operating,Days to first funding,3.6 -> 1.2 years (-2.4),Closed (P = 0.35)
+35791,Stio,Operating,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
+35791,Stio,Operating,Country,USA -> other country,CAN -> IPO
+52801,Coupa Software,IPO,Total funding,"$169,000,000 -> $159,422,280 (-$9,577,720)",Operating (P = 0.51)
+52801,Coupa Software,IPO,Number of funding rounds,7 -> 6 rounds (-1),Operating (P = 0.67)
+52801,Coupa Software,IPO,Days to first funding,1.2 -> 1.1 years (-0.0),Operating (P = 0.58)
+52801,Coupa Software,IPO,Time between first and last round,8.2 -> 8.1 years (-0.1),Operating (P = 0.57)
+52801,Coupa Software,IPO,Country,USA -> other country,"ESP -> Operating, IND -> Operating, ISR -> Operating, Unknown -> Operating"
+48867,Icelandic Glacial,IPO,Total funding,"$40,000,000 -> $43,191,006 (+$3,191,006)",Operating (P = 0.50)
+48867,Icelandic Glacial,IPO,Number of funding rounds,1 -> 2 rounds (+1),Closed (P = 0.41)
+48867,Icelandic Glacial,IPO,Days to first funding,7.1 -> 7.5 years (+0.3),Operating (P = 0.52)
+48867,Icelandic Glacial,IPO,Time between first and last round,"not tested (only 1 round, so there is no gap)",-
+48867,Icelandic Glacial,IPO,Country,USA -> other country,"CAN -> Closed, ESP -> Closed, FRA -> Closed, IND -> Operating, Other -> Closed"
+46336,Exinda,Acquired,Total funding,"$25,000,000 -> $95,779,671 (+$70,779,671)",Operating (P = 0.38)
+46336,Exinda,Acquired,Number of funding rounds,4 -> 2 rounds (-2),Operating (P = 0.57)
+46336,Exinda,Acquired,Days to first funding,2.4 -> 4.2 years (+1.8),Operating (P = 0.44)
+46336,Exinda,Acquired,Time between first and last round,9.1 -> 0.8 years (-8.3),IPO (P = 0.43)
+46336,Exinda,Acquired,Country,USA -> other country,"CHN -> IPO, DEU -> IPO, FRA -> IPO, IND -> Operating, ISR -> IPO, Other -> IPO, Unknown -> Operating"
