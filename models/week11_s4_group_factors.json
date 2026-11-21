@@ -1,0 +1,14 @@
+{
+ "USA": {
+  "Closed": 1.0,
+  "Acquired": 1.0
+ },
+ "Non-US": {
+  "Closed": 0.9048374180359597,
+  "Acquired": 1.1051709180756477
+ },
+ "Unknown": {
+  "Closed": 0.4965853037914095,
+  "Acquired": 1.0
+ }
+}
